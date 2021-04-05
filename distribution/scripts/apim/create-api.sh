@@ -398,6 +398,9 @@ create_api() {
             local updated_api_id=$(echo "$updated_api" | jq -r '.id')
             if [ ! -z $updated_api_id ] && [ ! $updated_api_id = "null" ]; then
                 echo "Mediation policy is set to $api_name API with ID $updated_api_id"
+                local rev_id_2=$($curl_command -H "Authorization: Bearer $create_access_token" -H "Content-Type: application/json" -X POST -d '{"description": "first revision"}' ${base_https_url}/api/am/publisher/v2/apis/${updated_api_id}/revisions | jq -r '.id')
+                local revisionUuid=$($curl_command -H "Authorization: Bearer $create_access_token" -H "Content-Type: application/json" -X POST -d '[{"name": "Production and Sandbox", "vhost": "localhost" ,"displayOnDevportal": true}]' ${base_https_url}/api/am/publisher/v2/apis/${updated_api_id}/deploy-revision?revisionId=${rev_id_2} | jq -r '.[0] | .revisionUuid')
+                sleep 3
                 break
             fi
             n=$(($n + 1))
