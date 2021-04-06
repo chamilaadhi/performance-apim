@@ -87,7 +87,12 @@ echo "Enabling GC Logs"
 JAVA_COMMAND="$JAVA_HOME/bin/java"
 JAVA_VERSION=$("$JAVA_COMMAND" -version 2>&1 | awk -F '"' '/version/ {print $2}')
 if [[ $JAVA_VERSION =~ ^1\.8.* ]]; then
-    export JAVA_OPTS="-XX:+PrintGC -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:/home/ubuntu/wso2am/repository/logs/gc.log"
+    #export JAVA_OPTS="-XX:+PrintGC -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:/home/ubuntu/wso2am/repository/logs/gc.log"
+    export JAVA_OPTS="-XX:+PrintGC -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:/home/ubuntu/wso2am/repository/logs/gc.log -XX:+UnlockCommercialFeatures -XX:+FlightRecorder -XX:StartFlightRecording=delay=30s,duration=13m,name=Profiling,filename=/home/ubuntu/wso2am/repository/logs/recording.jfr,settings=profile "
+
+echo "Starting APIM"
+wso2am/bin/wso2server.sh start
+
 else 
     # for jdk11
     export JAVA_OPTS="-Xlog:gc*,safepoint,gc+heap=trace:file=/home/ubuntu/wso2am/repository/logs/gc.log:uptime,utctime,level,tags "
