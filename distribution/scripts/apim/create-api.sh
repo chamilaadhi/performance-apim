@@ -167,6 +167,11 @@ get_access_token() {
     echo $access_token
 }
 
+get_admin_access_token() {
+    local access_token=$($curl_command -d "grant_type=password&username=admin&password=admin&scope=apim:admin+apim:api_create+apim:api_delete+apim:api_generate_key+apim:api_import_export+apim:api_product_import_export+apim:api_publish+apim:api_view+apim:app_import_export+apim:client_certificates_add+apim:client_certificates_update+apim:client_certificates_view+apim:comment_view+apim:comment_write+apim:document_create+apim:document_manage+apim:ep_certificates_add+apim:ep_certificates_update+apim:ep_certificates_view+apim:mediation_policy_create+apim:mediation_policy_manage+apim:mediation_policy_view+apim:pub_alert_manage+apim:publisher_settings+apim:shared_scope_manage+apim:subscription_block+apim:subscription_view+apim:threat_protection_policy_create+apim:threat_protection_policy_manage+openid+service_catalog:service_view+service_catalog:service_write" -u $client_credentials ${base_https_url}/oauth2/token | jq -r '.access_token')
+    echo $access_token
+}
+
 view_access_token=$(get_access_token api_view)
 create_access_token=$(get_access_token api_create)
 publish_access_token=$(get_access_token api_publish)
@@ -174,6 +179,7 @@ subscribe_access_token=$(get_access_token subscribe)
 app_access_token=$(get_access_token app_manage)
 mediation_policy_create_token=$(get_access_token mediation_policy_create) 
 sub_manage_token=$(get_access_token sub_manage) 
+admin_token=$(get_admin_access_token)
 
 # Find "PerformanceTestAPP" ID
 echo "Getting PerformanceTestAPP ID"
@@ -266,7 +272,7 @@ api_create_request() {
       }
    },
    "gatewayEnvironments":[ 
-      "Production and Sandbox"
+      "Default"
    ],
    "operations":[ 
       { 
@@ -353,7 +359,7 @@ create_api() {
     fi
 
     local rev_id=$($curl_command -H "Authorization: Bearer $create_access_token" -H "Content-Type: application/json" -X POST -d '{"description": "first revision"}' ${base_https_url}/api/am/publisher/v2/apis/${api_id}/revisions | jq -r '.id')
-    local revisionUuid=$($curl_command -H "Authorization: Bearer $create_access_token" -H "Content-Type: application/json" -X POST -d '[{"name": "Production and Sandbox", "vhost": "localhost" ,"displayOnDevportal": true}]' ${base_https_url}/api/am/publisher/v2/apis/${api_id}/deploy-revision?revisionId=${rev_id} | jq -r '.[0] | .revisionUuid')
+    local revisionUuid=$($curl_command -H "Authorization: Bearer $create_access_token" -H "Content-Type: application/json" -X POST -d '[{"name": "Default", "vhost": "localhost" ,"displayOnDevportal": true}]' ${base_https_url}/api/am/publisher/v2/apis/${api_id}/deploy-revision?revisionId=${rev_id} | jq -r '.[0] | .revisionUuid')
 
     echo "Publishing $api_name API"
     local publish_api_status=$($curl_command -w "%{http_code}" -o /dev/null -H "Authorization: Bearer $publish_access_token" -X POST "${base_https_url}/api/am/publisher/v2/apis/change-lifecycle?action=Publish&apiId=${api_id}")
@@ -367,7 +373,7 @@ create_api() {
     fi
     if [ ! -z "$out_sequence" ]; then
         echo "Adding mediation policy to $api_name API"
-        local sequence_id=$($curl_command -H "Authorization: Bearer $mediation_policy_create_token" -F type=out -F mediationPolicyFile=@$script_dir/payload/mediation-api-sequence.xml "${base_https_url}/api/am/publisher/v2/apis/${api_id}/mediation-policies" | jq -r '.id')
+        local sequence_id=$($curl_command -H "Authorization: Bearer $admin_token" -F type=out -F mediationPolicyFile=@$script_dir/payload/mediation-api-sequence.xml "${base_https_url}/api/am/publisher/v2/apis/${api_id}/mediation-policies" | jq -r '.id')
         if [ ! -z $sequence_id ] && [ ! $sequence_id = "null" ]; then
             echo "Mediation policy added to $api_name API with ID $sequence_id"
             echo -ne "\n"
@@ -394,12 +400,12 @@ create_api() {
         n=0
         until [ $n -ge 50 ]; do
             sleep 10
-            local updated_api="$($curl_command -H "Authorization: Bearer $create_access_token" -H "Content-Type: application/json" -X PUT -d "$api_details" "${base_https_url}/api/am/publisher/v2/apis/${api_id}")"
+            local updated_api="$($curl_command -H "Authorization: Bearer $admin_token" -H "Content-Type: application/json" -X PUT -d "$api_details" "${base_https_url}/api/am/publisher/v2/apis/${api_id}")"
             local updated_api_id=$(echo "$updated_api" | jq -r '.id')
             if [ ! -z $updated_api_id ] && [ ! $updated_api_id = "null" ]; then
                 echo "Mediation policy is set to $api_name API with ID $updated_api_id"
-                local rev_id_2=$($curl_command -H "Authorization: Bearer $create_access_token" -H "Content-Type: application/json" -X POST -d '{"description": "first revision"}' ${base_https_url}/api/am/publisher/v2/apis/${updated_api_id}/revisions | jq -r '.id')
-                local revisionUuid=$($curl_command -H "Authorization: Bearer $create_access_token" -H "Content-Type: application/json" -X POST -d '[{"name": "Production and Sandbox", "vhost": "localhost" ,"displayOnDevportal": true}]' ${base_https_url}/api/am/publisher/v2/apis/${updated_api_id}/deploy-revision?revisionId=${rev_id_2} | jq -r '.[0] | .revisionUuid')
+                local rev_id_2=$($curl_command -H "Authorization: Bearer $admin_token" -H "Content-Type: application/json" -X POST -d '{"description": "first revision"}' ${base_https_url}/api/am/publisher/v2/apis/${updated_api_id}/revisions | jq -r '.id')
+                local revisionUuid=$($curl_command -H "Authorization: Bearer $admin_token" -H "Content-Type: application/json" -X POST -d '[{"name": "Default", "vhost": "localhost" ,"displayOnDevportal": true}]' ${base_https_url}/api/am/publisher/v2/apis/${updated_api_id}/deploy-revision?revisionId=${rev_id_2} | jq -r '.[0] | .revisionUuid')
                 sleep 3
                 break
             fi
