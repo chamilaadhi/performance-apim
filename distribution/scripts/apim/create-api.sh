@@ -271,9 +271,6 @@ api_create_request() {
          "url":"${backend_endpoint_url}"
       }
    },
-   "gatewayEnvironments":[ 
-      "Default"
-   ],
    "operations":[ 
       { 
          "target":"/*",
